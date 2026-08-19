@@ -1,0 +1,705 @@
+/* Tokens carried from the marketing site's current palette (research/08_BRAND_SYSTEM.md) — the
+   live app/globals.css set, not the superseded docs/ART_DIRECTION.md one. Only the minimum
+   shareable subset per that doc's own recommendation: logo/colors/type/spacing, no motion/scrim.
+   Dark-mode values below are a deliberate re-tuning of the SAME hues (not a second palette) so
+   the two themes still read as the same brand. */
+:root {
+  --color-primary-blue: #0f4c6e;
+  --color-primary-blue-deep: #092b3f;
+  --color-accent-gold: rgb(237, 163, 47);
+  --color-text-dark: #33302a;
+  --color-neutral-50: #faf7f1;
+  --color-neutral-100: #f3ecdd;
+  --color-neutral-200: #e4d9c4;
+  --color-neutral-300: #cdbb9b;
+  --color-neutral-600: #5c5548;
+  --color-border: var(--color-neutral-200);
+  --color-int: #0c7a7a;
+  --color-int-soft: #e6f6f6;
+  --color-ext: #a6741a;
+  --color-ext-soft: #f8efdb;
+  --color-green: #1f9d6b;
+  --color-green-soft: #e5f6ee;
+  /* A dedicated danger tone — distinct from --color-ext (which means "external source," not
+     "irreversible"). Trip deletion used to borrow --color-ext for its warning styling purely
+     because a warm tone was already at hand; that conflated two unrelated meanings. */
+  --color-danger: #9c3b2e;
+  --color-danger-soft: #f7e7e3;
+
+  /* Semantic layer used by structural CSS (headings, surfaces) so the brand hues above can stay
+     untouched while still flipping correctly between themes. */
+  --surface: #ffffff;
+  --heading: var(--color-primary-blue-deep);
+  --overlay-hover: rgba(0, 0, 0, 0.035);
+  --overlay-active: rgba(0, 0, 0, 0.07);
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 2px 8px rgba(38, 31, 23, 0.08);
+  --shadow-md: 0 8px 24px rgba(30, 24, 18, 0.10), 0 2px 6px rgba(30, 24, 18, 0.06);
+  --shadow-lg: 0 20px 48px rgba(20, 16, 12, 0.18), 0 6px 14px rgba(20, 16, 12, 0.08);
+  --shadow-focus: 0 0 0 3px rgba(15, 76, 110, 0.22);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur-base: 220ms;
+  --dur-slow: 460ms;
+
+  --sidebar-width: 232px;
+}
+
+/* Explicit two-state toggle (see lib/theme.ts) — no prefers-color-scheme branch, so there's
+   exactly one source of truth for which theme is active and the server always renders it right
+   on first paint. */
+:root[data-theme="dark"] {
+  --color-primary-blue: #4ea9d6;
+  --color-primary-blue-deep: #071827;
+  --color-accent-gold: rgb(240, 179, 84);
+  --color-text-dark: #ece7dc;
+  --color-neutral-50: #0a1420;
+  --color-neutral-100: #101c2c;
+  --color-neutral-200: rgba(255, 255, 255, 0.1);
+  --color-neutral-300: rgba(255, 255, 255, 0.2);
+  --color-neutral-600: #9aa0ab;
+  --color-int: #4fd0c9;
+  --color-int-soft: rgba(79, 208, 201, 0.16);
+  --color-ext: #e0ab55;
+  --color-ext-soft: rgba(224, 171, 85, 0.16);
+  --color-green: #4cd695;
+  --color-green-soft: rgba(76, 214, 149, 0.16);
+  --color-danger: #e2685a;
+  --color-danger-soft: rgba(226, 104, 90, 0.18);
+
+  --surface: #101c2c;
+  --heading: #f1ede2;
+  --overlay-hover: rgba(255, 255, 255, 0.045);
+  --overlay-active: rgba(255, 255, 255, 0.08);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 10px 26px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.6), 0 8px 18px rgba(0, 0, 0, 0.4);
+  --shadow-focus: 0 0 0 3px rgba(78, 169, 214, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+html {
+  color-scheme: light dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-neutral-50);
+  color: var(--color-text-dark);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-cormorant), serif;
+  font-weight: 600;
+  margin: 0;
+  color: var(--heading);
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: var(--color-accent-gold);
+  color: var(--color-primary-blue-deep);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: 6px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-neutral-600);
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+tbody tr {
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+tbody tr:hover {
+  background: var(--overlay-hover);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out);
+}
+a.card {
+  text-decoration: none;
+}
+a.card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--color-neutral-300);
+}
+
+.pad {
+  padding: 18px 20px;
+}
+
+.muted {
+  color: var(--color-neutral-600);
+}
+
+.badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  padding: 2px 8px;
+  display: inline-block;
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+
+.badge.int {
+  background: var(--color-int-soft);
+  color: var(--color-int);
+}
+
+.badge.ext {
+  background: var(--color-ext-soft);
+  color: var(--color-ext);
+}
+
+.badge.warn {
+  background: var(--color-ext-soft);
+  color: var(--color-ext);
+}
+
+.badge.danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.badge.success {
+  background: var(--color-green-soft);
+  color: var(--color-green);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 1px solid var(--color-border);
+  background: var(--surface);
+  color: var(--color-text-dark);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+}
+.btn:hover {
+  border-color: var(--color-neutral-300);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+.btn:active {
+  transform: translateY(0) scale(0.98);
+}
+.btn:disabled,
+.btn[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+
+.btn-primary {
+  background: var(--color-int);
+  color: #fff;
+  border-color: var(--color-int);
+}
+.btn-primary:hover {
+  filter: brightness(0.92);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: #fff;
+  border-color: var(--color-danger);
+}
+.btn-danger:hover {
+  filter: brightness(0.92);
+  box-shadow: var(--shadow-md);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--surface);
+  color: var(--color-neutral-600);
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.icon-btn:hover {
+  color: var(--color-primary-blue);
+  border-color: var(--color-neutral-300);
+  transform: translateY(-1px);
+}
+.icon-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  max-width: 80vw;
+  background: var(--surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 40;
+  overflow: hidden;
+  animation: fadeInUp var(--dur-fast) var(--ease-out);
+}
+.notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--heading);
+}
+.notif-mark-all {
+  background: none;
+  border: none;
+  color: var(--color-primary-blue);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.notif-mark-all:hover {
+  text-decoration: underline;
+}
+.notif-panel-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.notif-empty {
+  padding: 18px 14px;
+  font-size: 0.82rem;
+}
+.notif-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  color: var(--color-text-dark);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.notif-row:last-child {
+  border-bottom: none;
+}
+.notif-row:hover {
+  background: var(--overlay-hover);
+}
+.notif-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--color-primary-blue);
+}
+.notif-text {
+  flex: 1;
+}
+.notif-view-all {
+  display: block;
+  text-align: center;
+  padding: 9px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-primary-blue);
+  text-decoration: none;
+  background: var(--overlay-hover);
+}
+.notif-view-all:hover {
+  text-decoration: underline;
+}
+
+.notif-list-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.85rem;
+}
+.notif-list-row:last-child {
+  border-bottom: none;
+}
+.notif-list-row .notif-dot {
+  margin-top: 0;
+}
+.notif-list-link {
+  color: var(--color-text-dark);
+  text-decoration: underline;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="date"],
+select,
+textarea {
+  font-family: inherit;
+  font-size: 0.88rem;
+  padding: 6px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-dark);
+  background: var(--surface);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color-neutral-300);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-primary-blue);
+}
+/* A <fieldset disabled> read-only form (Products/Providers below Administrator) must look locked,
+   not just behave locked — otherwise it reads as a bug ("why won't this save?") rather than a
+   permission boundary. */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-600);
+  cursor: not-allowed;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.kpi .k-l {
+  font-size: 0.76rem;
+  color: var(--color-neutral-600);
+  font-weight: 600;
+}
+
+.kpi .k-v {
+  font-family: var(--font-cormorant), serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--heading);
+  margin-top: 4px;
+}
+
+/* ---------- motion ---------- */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-in {
+  animation: fadeInUp var(--dur-slow) var(--ease-out) both;
+}
+.fade-in-1 {
+  animation-delay: 40ms;
+}
+.fade-in-2 {
+  animation-delay: 80ms;
+}
+.fade-in-3 {
+  animation-delay: 120ms;
+}
+.fade-in-4 {
+  animation-delay: 160ms;
+}
+.fade-in-5 {
+  animation-delay: 200ms;
+}
+.fade-in-6 {
+  animation-delay: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- sidebar nav ---------- */
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.nav-link {
+  display: block;
+  position: relative;
+  padding: 9px 20px 9px 23px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.nav-link:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.06);
+}
+.nav-link::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent-gold);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.nav-link.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+.nav-link.active::before {
+  opacity: 1;
+}
+
+/* ---------- pipeline stepper (trip detail) ---------- */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+}
+.stepper-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 84px;
+}
+.stepper-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-neutral-300);
+  background: var(--surface);
+  color: var(--color-neutral-600);
+  font-size: 0.72rem;
+  font-weight: 700;
+  transition: background-color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+.stepper-dot.done {
+  background: var(--color-int);
+  border-color: var(--color-int);
+  color: #fff;
+}
+.stepper-dot.confirmed {
+  background: var(--color-green);
+  border-color: var(--color-green);
+  color: #fff;
+}
+.stepper-dot.current {
+  border-color: var(--color-accent-gold);
+  color: var(--color-accent-gold);
+  animation: pulseRing 2.2s var(--ease-in-out) infinite;
+}
+@keyframes pulseRing {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--color-ext-soft);
+  }
+  50% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.stepper-label {
+  font-size: 0.71rem;
+  color: var(--color-neutral-600);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.25;
+}
+.stepper-label.done {
+  color: var(--color-text-dark);
+}
+.stepper-line {
+  flex: 1 1 20px;
+  height: 2px;
+  margin-top: 13px;
+  background: var(--color-neutral-200);
+  transition: background-color var(--dur-slow) var(--ease-out);
+}
+.stepper-line.done {
+  background: var(--color-int);
+}
+
+/* ---------- mobile nav (CSS-only, no JS — a travel agent away from a desk is exactly the
+   moment paper wins if this doesn't work on a phone) ---------- */
+.nav-toggle-label {
+  display: none;
+  cursor: pointer;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  max-width: 360px;
+}
+
+.search-box input {
+  width: 100%;
+  padding-left: 32px;
+}
+
+.search-box svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-neutral-600);
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0);
+  }
+  #nav-toggle:checked ~ .app-shell .sidebar {
+    transform: translateX(0);
+    box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.35);
+  }
+  .nav-toggle-label {
+    display: inline-flex;
+    align-items: center;
+  }
+  .search-box {
+    max-width: none;
+    order: 3;
+    flex-basis: 100%;
+    margin-top: 8px;
+  }
+  .topbar-row {
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,6 @@
+# Local tool state — not part of the deployed app, not meant to be shared via the repo
+.claude/
+
+# OS cruft
+.DS_Store
+Thumbs.db

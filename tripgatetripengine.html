@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TripGate — Travel Orchestration OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --navy:#0e2a47; --navy-2:#14395f; --navy-deep:#0a1f36;
+  --teal:#0c7a7a; --teal-bright:#14b8b8; --gold:#c8922e; --gold-soft:#f6edda;
+  --bg:#eef2f7; --surface:#ffffff; --surface-2:#f4f7fb;
+  --ink:#0e1c2b; --muted:#5a6a80; --border:#e2e8f0;
+  --green:#1f9d6b; --green-soft:#e5f6ee; --amber:#c68526; --amber-soft:#fbf1dd; --red:#c0453a; --red-soft:#fbeae8;
+  --int:#0c7a7a; --int-soft:#e6f6f6; --ext:#a6741a; --ext-soft:#f8efdb;
+  --shadow:0 8px 24px -14px rgba(14,42,71,.30);
+  --serif:"Fraunces",Georgia,serif; --sans:"Inter",system-ui,-apple-system,sans-serif;
+  --sbw:248px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:600;margin:0;line-height:1.15;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+.app{display:flex;min-height:100vh;}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar{width:var(--sbw);flex:0 0 var(--sbw);background:var(--navy);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+.sb-brand{display:flex;align-items:center;gap:11px;padding:20px 20px 16px;}
+.sb-brand .mk{width:30px;height:34px;display:grid;place-items:center;}
+.sb-brand .nm{font-family:var(--serif);font-size:1.25rem;font-weight:700;}
+.sb-brand small{display:block;font-family:var(--sans);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-bright);font-weight:700;margin-top:1px;}
+.sb-sec{font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.4);font-weight:700;padding:16px 22px 6px;}
+.nav-item{display:flex;align-items:center;gap:12px;padding:10px 20px;color:rgba(255,255,255,.72);font-weight:500;font-size:.9rem;border-left:3px solid transparent;transition:.15s;}
+.nav-item:hover{background:rgba(255,255,255,.06);color:#fff;}
+.nav-item.active{background:rgba(20,184,184,.14);color:#fff;border-left-color:var(--teal-bright);}
+.nav-item .ic{width:18px;height:18px;flex:0 0 auto;opacity:.9;}
+.nav-item .badge{margin-left:auto;background:var(--teal);color:#fff;font-size:.68rem;font-weight:700;border-radius:999px;padding:1px 8px;}
+.nav-item.star .ic{color:var(--gold);}
+.sb-foot{margin-top:auto;padding:16px 20px;border-top:1px solid rgba(255,255,255,.1);font-size:.78rem;color:rgba(255,255,255,.6);}
+.sb-foot .u{display:flex;align-items:center;gap:10px;}
+.sb-foot .av{width:32px;height:32px;border-radius:50%;background:var(--teal);display:grid;place-items:center;font-weight:700;color:#fff;font-size:.8rem;}
+
+/* ---------- MAIN ---------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{height:62px;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:0 26px;position:sticky;top:0;z-index:20;}
+.search{flex:1;max-width:420px;display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--muted);}
+.search input{border:none;background:none;outline:none;flex:1;font-family:inherit;font-size:.9rem;color:var(--ink);}
+.model-pill{margin-left:auto;display:inline-flex;align-items:center;gap:8px;background:var(--gold-soft);color:#8a600f;border:1px solid #ecd9ac;border-radius:999px;padding:7px 14px;font-weight:700;font-size:.8rem;}
+.model-pill .d{width:7px;height:7px;border-radius:50%;background:var(--gold);}
+.tb-ic{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:var(--muted);border:1px solid var(--border);background:var(--surface);}
+
+.content{padding:26px;flex:1;}
+.view{display:none;}
+.view.active{display:block;animation:fade .25s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap;}
+.page-head h1{font-size:1.7rem;color:var(--navy);}
+.page-head p{color:var(--muted);margin:6px 0 0;font-size:.92rem;}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:10px;padding:9px 16px;font-weight:600;font-size:.88rem;border:1px solid transparent;}
+.btn-primary{background:var(--teal);color:#fff;}
+.btn-primary:hover{background:#0a6a6a;}
+.btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--border);}
+
+/* generic */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);}
+.pad{padding:18px 20px;}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+.card-h h3{font-size:1.05rem;color:var(--navy);}
+.muted{color:var(--muted);}
+.right{margin-left:auto;}
+
+/* source + type badges */
+.src{font-size:.68rem;font-weight:700;letter-spacing:.03em;border-radius:6px;padding:2px 8px;display:inline-flex;align-items:center;gap:5px;text-transform:uppercase;}
+.src.int{background:var(--int-soft);color:var(--int);}
+.src.ext{background:var(--ext-soft);color:var(--ext);}
+.src .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.type{font-size:.72rem;font-weight:600;border-radius:6px;padding:3px 9px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);}
+.stat-pill{font-size:.72rem;font-weight:700;border-radius:999px;padding:3px 10px;}
+.st-ok{background:var(--green-soft);color:var(--green);}
+.st-wait{background:var(--amber-soft);color:var(--amber);}
+.st-act{background:var(--red-soft);color:var(--red);}
+
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;}
+@media(max-width:1150px){.kpis{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr);}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);}
+.kpi .k-l{font-size:.76rem;color:var(--muted);font-weight:600;}
+.kpi .k-v{font-family:var(--serif);font-size:1.75rem;font-weight:700;color:var(--navy);margin-top:4px;}
+.kpi .k-d{font-size:.74rem;font-weight:700;margin-top:2px;}
+.k-up{color:var(--green);} .k-down{color:var(--teal);}
+
+/* ---------- pipeline strip (dashboard) ---------- */
+.pstrip{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;}
+.pstrip .st{flex:1 1 0;min-width:104px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:12px;text-align:center;}
+.pstrip .st .n{font-family:var(--serif);font-size:1.4rem;font-weight:700;color:var(--navy);}
+.pstrip .st.key{background:#eafafa;border-color:#bfe9e9;}
+.pstrip .st .lb{font-size:.72rem;color:var(--muted);font-weight:600;margin-top:2px;}
+.arrowflow{display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-size:.8rem;color:var(--muted);font-weight:600;}
+.arrowflow b{color:var(--teal);}
+
+/* two-col */
+.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:18px;}
+@media(max-width:960px){.grid2{grid-template-columns:1fr;}}
+.tl{list-style:none;margin:0;padding:0;}
+.tl li{display:flex;gap:12px;padding:12px 0;border-bottom:1px dashed var(--border);}
+.tl li:last-child{border-bottom:none;}
+.tl .dot{width:9px;height:9px;border-radius:50%;background:var(--teal);margin-top:6px;flex:0 0 auto;}
+.tl .t{font-weight:600;font-size:.9rem;}
+.tl .m{font-size:.8rem;color:var(--muted);}
+.paylist{list-style:none;margin:0;padding:0;}
+.paylist li{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px dashed var(--border);}
+.paylist li:last-child{border-bottom:none;}
+.paylist .amt{font-weight:700;color:var(--navy);}
+
+/* ---------- kanban ---------- */
+.kanban{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;}
+.kcol{flex:0 0 244px;background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:12px;}
+.kcol h4{font-size:.82rem;color:var(--navy);display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.kcol h4 .c{background:var(--surface);border:1px solid var(--border);border-radius:999px;font-size:.72rem;padding:1px 8px;color:var(--muted);}
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:12px;margin-bottom:10px;box-shadow:var(--shadow);}
+.tcard:last-child{margin-bottom:0;}
+.tcard .cust{font-weight:700;font-size:.9rem;}
+.tcard .dest{font-size:.8rem;color:var(--muted);margin:1px 0 8px;}
+.tcard .row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.tcard .val{font-weight:700;color:var(--teal);font-size:.85rem;}
+.tcard .srcs{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;}
+.kcol.key{background:#eafafa;border-color:#bfe9e9;}
+
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:12px 16px;border-bottom:1px solid var(--border);}
+td{padding:13px 16px;border-bottom:1px solid var(--border);font-size:.9rem;vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+.pname{font-weight:600;}
+.chips{display:flex;gap:6px;flex-wrap:wrap;}
+.filterbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.fchip{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 13px;font-size:.8rem;font-weight:600;color:var(--muted);}
+.fchip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+/* ---------- quote builder ---------- */
+.qb{display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start;}
+@media(max-width:1050px){.qb{grid-template-columns:1fr;}}
+.qhead{display:flex;flex-wrap:wrap;gap:18px;padding:16px 20px;border-bottom:1px solid var(--border);}
+.qhead .f{font-size:.9rem;}
+.qhead .f .l{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;}
+.qhead .f .v{font-weight:600;}
+.qnote{background:var(--int-soft);border:1px dashed var(--int);color:#0a6060;border-radius:10px;padding:10px 14px;font-size:.82rem;font-weight:600;margin:14px 20px 0;display:flex;gap:9px;align-items:center;}
+.line{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);}
+.line .ico{width:34px;height:34px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center;flex:0 0 auto;}
+.line .info{flex:1;min-width:0;}
+.line .info .nm{font-weight:600;font-size:.9rem;}
+.line .info .meta{display:flex;gap:6px;margin-top:3px;align-items:center;}
+.line .cost{font-weight:700;color:var(--navy);white-space:nowrap;}
+.line .rm{border:none;background:none;color:var(--muted);font-size:1.1rem;line-height:1;padding:4px;}
+.line .rm:hover{color:var(--red);}
+.summary{position:sticky;top:80px;}
+.sumrow{display:flex;justify-content:space-between;padding:9px 0;font-size:.92rem;}
+.sumrow.big{border-top:1px solid var(--border);margin-top:6px;padding-top:14px;font-family:var(--serif);font-size:1.35rem;font-weight:700;color:var(--navy);}
+.sumrow .prof{color:var(--green);font-weight:700;}
+.markup{display:flex;align-items:center;gap:8px;}
+.markup input{width:64px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-family:inherit;text-align:right;}
+.picker{margin-top:18px;}
+.picker h4{font-size:.82rem;color:var(--navy);margin-bottom:10px;}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.padd{text-align:left;border:1px solid var(--border);background:var(--surface);border-radius:10px;padding:10px 12px;transition:.15s;}
+.padd:hover{border-color:var(--teal);background:var(--surface-2);}
+.padd .pn{font-weight:600;font-size:.84rem;}
+.padd .pm{display:flex;justify-content:space-between;align-items:center;margin-top:6px;}
+.padd .pc{font-weight:700;color:var(--navy);font-size:.82rem;}
+
+/* ---------- doc vault ---------- */
+.docgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+.doc{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;box-shadow:var(--shadow);}
+.doc .di{width:40px;height:40px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;margin:0 auto 10px;color:var(--teal);}
+.doc .dn{font-weight:600;font-size:.85rem;}
+.doc .ds{font-size:.72rem;margin-top:6px;}
+
+/* ---------- knowledge ---------- */
+.kb{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.kbc{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;box-shadow:var(--shadow);}
+.kbc .ki{width:38px;height:38px;border-radius:10px;background:var(--int-soft);color:var(--teal);display:grid;place-items:center;margin-bottom:10px;}
+.kbc h4{font-size:1rem;color:var(--navy);margin-bottom:4px;}
+.kbc p{font-size:.83rem;color:var(--muted);margin:0;}
+.seed{background:var(--gold-soft);border:1px solid #ecd9ac;border-radius:12px;padding:14px 18px;margin-bottom:18px;font-size:.88rem;color:#7a560d;display:flex;gap:10px;align-items:center;}
+
+/* architecture mini */
+.archrow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px;}
+@media(max-width:800px){.archrow{grid-template-columns:1fr;}}
+.archbox{border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface-2);}
+.archbox h4{color:var(--navy);font-size:.95rem;margin-bottom:8px;}
+.tree{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;color:var(--muted);white-space:pre;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <span class="mk"><svg width="28" height="32" viewBox="0 0 30 34"><path d="M15 1C8 1 3 6 3 13c0 8 12 20 12 20s12-12 12-20C27 6 22 1 15 1z" fill="#14b8b8"/><path d="M15 8a4 4 0 0 0-1 7.9V21h2v-5.1A4 4 0 0 0 15 8z" fill="#fff"/></svg></span>
+      <span class="nm">TripGate<small>Orchestration OS</small></span>
+    </div>
+    <div class="sb-sec">Operate</div>
+    <a class="nav-item active" data-view="dashboard"><span class="ic">▤</span> Dashboard</a>
+    <a class="nav-item" data-view="engine"><span class="ic">⟶</span> Trip Engine <span class="badge">24</span></a>
+    <a class="nav-item" data-view="leads"><span class="ic">✉</span> Lead Inbox <span class="badge">12</span></a>
+    <div class="sb-sec">Build</div>
+    <a class="nav-item star" data-view="quote"><span class="ic">★</span> Quote Builder</a>
+    <a class="nav-item" data-view="partners"><span class="ic">⌂</span> Partners</a>
+    <a class="nav-item" data-view="bookings"><span class="ic">▣</span> Bookings</a>
+    <a class="nav-item" data-view="payments"><span class="ic">$</span> Payments</a>
+    <a class="nav-item" data-view="documents"><span class="ic">▢</span> Documents</a>
+    <div class="sb-sec">Scale</div>
+    <a class="nav-item" data-view="knowledge"><span class="ic">✦</span> Knowledge Base</a>
+    <a class="nav-item" data-view="architecture"><span class="ic">◈</span> Architecture</a>
+    <div class="sb-foot">
+      <div class="u"><span class="av">CB</span><div><div style="color:#fff;font-weight:600;">Chafik B.</div><div>TripGate · Admin</div></div></div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <div class="topbar">
+      <div class="search"><span>⌕</span><input placeholder="Search trips, customers, partners, products…" /></div>
+      <span class="model-pill"><span class="d"></span> Operating model: Hybrid</span>
+      <div class="tb-ic">◔</div>
+      <div class="tb-ic">⚙</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== DASHBOARD ===== -->
+      <section class="view active" data-view="dashboard">
+        <div class="page-head">
+          <div><h1>Dashboard</h1><p>Everything the agency is orchestrating right now — in one place.</p></div>
+          <button class="btn btn-primary">+ New trip</button>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="k-l">Active trips</div><div class="k-v">24</div><div class="k-d k-up">▲ 6 this week</div></div>
+          <div class="kpi"><div class="k-l">Quotes pending</div><div class="k-v">7</div><div class="k-d k-up">3 awaiting reply</div></div>
+          <div class="kpi"><div class="k-l">Revenue · this month</div><div class="k-v">486k</div><div class="k-d k-up">▲ 18% vs last</div></div>
+          <div class="kpi"><div class="k-l">New leads</div><div class="k-v">12</div><div class="k-d k-up">0 lost</div></div>
+          <div class="kpi"><div class="k-l">Avg quote time</div><div class="k-v">5<span style="font-size:1rem">min</span></div><div class="k-d k-down">▼ from 60 min</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-h"><h3>Trip Engine</h3><span class="arrowflow muted">Lead → Requirements → Products → <b>Quote</b> → Booking → Payments → Support</span></div>
+          <div class="pad">
+            <div class="pstrip">
+              <div class="st"><div class="n">12</div><div class="lb">Lead</div></div>
+              <div class="st"><div class="n">6</div><div class="lb">Requirements</div></div>
+              <div class="st"><div class="n">5</div><div class="lb">Products</div></div>
+              <div class="st key"><div class="n">7</div><div class="lb">Quote</div></div>
+              <div class="st"><div class="n">4</div><div class="lb">Booking</div></div>
+              <div class="st"><div class="n">3</div><div class="lb">Documents</div></div>
+              <div class="st"><div class="n">5</div><div class="lb">Payments</div></div>
+              <div class="st"><div class="n">2</div><div class="lb">Support</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="card-h"><h3>Recent activity</h3><span class="muted" style="font-size:.8rem">Live</span></div>
+            <div class="pad">
+              <ul class="tl">
+                <li><span class="dot"></span><div><div class="t">Quote #Q-1042 sent to Leïla Haddad</div><div class="m">Marrakech → Sahara · 6 products (4 internal · 2 partner) · MAD 38,400</div></div></li>
+                <li><span class="dot"></span><div><div class="t">Riad Kniza confirmed 3 nights</div><div class="m">Partner · Hotel · Trip #T-318</div></div></li>
+                <li><span class="dot"></span><div><div class="t">Deposit received — MAD 12,000</div><div class="m">Omar Fassi · Grand Egypt · 40% deposit</div></div></li>
+                <li><span class="dot"></span><div><div class="t">New lead from WhatsApp</div><div class="m">"Family trip to Turkey, August" · auto-added to inbox</div></div></li>
+              </ul>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Upcoming payments</h3></div>
+            <div class="pad">
+              <ul class="paylist">
+                <li><div><div class="t">Balance · Omar Fassi</div><div class="m">Due in 4 days</div></div><span class="amt">MAD 18,000</span></li>
+                <li><div><div class="t">Partner · Atlas Transport</div><div class="m">Due in 6 days</div></div><span class="amt">MAD 4,200</span></li>
+                <li><div><div class="t">Balance · N. Alami</div><div class="m">Due in 9 days</div></div><span class="amt">MAD 9,500</span></li>
+                <li><div><div class="t">Visa partner · fees</div><div class="m">Due in 12 days</div></div><span class="amt">MAD 1,800</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== TRIP ENGINE ===== -->
+      <section class="view" data-view="engine">
+        <div class="page-head">
+          <div><h1>Trip Engine</h1><p>Every trip flows through one pipeline — the product source (internal or partner) can change without changing the flow.</p></div>
+          <button class="btn btn-primary">+ New trip</button>
+        </div>
+        <div class="kanban">
+          <div class="kcol"><h4>Lead <span class="c">12</span></h4>
+            <div class="tcard"><div class="cust">S. Bennani</div><div class="dest">Turkey · family · Aug</div><div class="row"><span class="val">~MAD 45k</span><span class="src ext"><span class="dot"></span>WhatsApp</span></div></div>
+            <div class="tcard"><div class="cust">J. Martin</div><div class="dest">Morocco · honeymoon</div><div class="row"><span class="val">~MAD 30k</span><span class="src ext"><span class="dot"></span>Website</span></div></div>
+          </div>
+          <div class="kcol"><h4>Requirements <span class="c">6</span></h4>
+            <div class="tcard"><div class="cust">A. Ziani</div><div class="dest">Dubai · 4 pax · 7 nights</div><div class="row"><span class="val">~MAD 90k</span></div></div>
+          </div>
+          <div class="kcol"><h4>Products <span class="c">5</span></h4>
+            <div class="tcard"><div class="cust">N. Alami</div><div class="dest">Imperial Cities · 5 nights</div><div class="row"><span class="val">MAD 34k</span></div><div class="srcs"><span class="src int"><span class="dot"></span>Internal</span><span class="src ext"><span class="dot"></span>Partner</span></div></div>
+          </div>
+          <div class="kcol key"><h4>Quote <span class="c">7</span></h4>
+            <div class="tcard"><div class="cust">L. Haddad</div><div class="dest">Marrakech → Sahara</div><div class="row"><span class="val">MAD 38.4k</span><span class="stat-pill st-wait">Sent</span></div><div class="srcs"><span class="src int"><span class="dot"></span>4 internal</span><span class="src ext"><span class="dot"></span>2 partner</span></div></div>
+            <div class="tcard"><div class="cust">R. Cohen</div><div class="dest">Chefchaouen + Fes</div><div class="row"><span class="val">MAD 21k</span><span class="stat-pill st-wait">Draft</span></div></div>
+          </div>
+          <div class="kcol"><h4>Booking <span class="c">4</span></h4>
+            <div class="tcard"><div class="cust">O. Fassi</div><div class="dest">Grand Egypt</div><div class="row"><span class="val">MAD 62k</span><span class="stat-pill st-ok">Approved</span></div></div>
+          </div>
+          <div class="kcol"><h4>Documents <span class="c">3</span></h4>
+            <div class="tcard"><div class="cust">M. Idrissi</div><div class="dest">Umrah · 12 pax</div><div class="row"><span class="val">MAD 210k</span><span class="stat-pill st-act">Visas due</span></div></div>
+          </div>
+          <div class="kcol"><h4>Payments <span class="c">5</span></h4>
+            <div class="tcard"><div class="cust">O. Fassi</div><div class="dest">Grand Egypt</div><div class="row"><span class="val">40% paid</span><span class="stat-pill st-wait">Balance due</span></div></div>
+          </div>
+          <div class="kcol"><h4>Support <span class="c">2</span></h4>
+            <div class="tcard"><div class="cust">K. Tazi</div><div class="dest">Japan · in destination</div><div class="row"><span class="val">Live trip</span><span class="stat-pill st-ok">On track</span></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== LEAD INBOX ===== -->
+      <section class="view" data-view="leads">
+        <div class="page-head"><div><h1>Unified Lead Inbox</h1><p>Website, WhatsApp, email, phone and social — one inbox, one lead card, zero lost leads.</p></div></div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Customer</th><th>Channel</th><th>Request</th><th>Received</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="pname">S. Bennani</td><td><span class="src ext"><span class="dot"></span>WhatsApp</span></td><td>Family trip to Turkey, August, 4 pax</td><td class="muted">2 min ago</td><td><span class="stat-pill st-act">New</span></td></tr>
+              <tr><td class="pname">J. Martin</td><td><span class="src ext"><span class="dot"></span>Website form</span></td><td>Morocco honeymoon, 8 nights</td><td class="muted">22 min ago</td><td><span class="stat-pill st-act">New</span></td></tr>
+              <tr><td class="pname">A. Ziani</td><td><span class="src ext"><span class="dot"></span>Instagram</span></td><td>Dubai, luxury, 7 nights</td><td class="muted">1 hr ago</td><td><span class="stat-pill st-wait">Qualifying</span></td></tr>
+              <tr><td class="pname">R. Cohen</td><td><span class="src ext"><span class="dot"></span>Email</span></td><td>Chefchaouen + Fes, 5 nights</td><td class="muted">3 hr ago</td><td><span class="stat-pill st-wait">Qualifying</span></td></tr>
+              <tr><td class="pname">H. Benali</td><td><span class="src ext"><span class="dot"></span>Phone</span></td><td>Umrah group, December</td><td class="muted">Today</td><td><span class="stat-pill st-ok">Converted</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== QUOTE BUILDER ===== -->
+      <section class="view" data-view="quote">
+        <div class="page-head">
+          <div><h1>Quote Builder <span style="font-size:.8rem;color:var(--gold);font-family:var(--sans);font-weight:700;background:var(--gold-soft);padding:3px 9px;border-radius:6px;vertical-align:middle;">THE HEART</span></h1><p>Assemble any trip from travel products. The quote doesn't care who the provider is — internal or partner, it's just a product.</p></div>
+          <div style="display:flex;gap:8px"><button class="btn btn-ghost">Save draft</button><button class="btn btn-primary">Generate &amp; send</button></div>
+        </div>
+        <div class="qb">
+          <div class="card">
+            <div class="qhead">
+              <div class="f"><div class="l">Customer</div><div class="v">Leïla Haddad · 2 travelers</div></div>
+              <div class="f"><div class="l">Trip</div><div class="v">Marrakech → Sahara</div></div>
+              <div class="f"><div class="l">Dates</div><div class="v">12–18 Sep 2026 · 6 nights</div></div>
+              <div class="f"><div class="l">Quote</div><div class="v">#Q-1042</div></div>
+            </div>
+            <div class="qnote">◈ Provider-agnostic: each line is a travel product with a source tag — swap internal ⇄ partner anytime.</div>
+            <div id="lines">
+              <!-- seeded line items -->
+              <div class="line" data-cost="9600"><div class="ico">🏨</div><div class="info"><div class="nm">Riad Kniza — 3 nights (Deluxe)</div><div class="meta"><span class="type">Hotel</span><span class="src ext"><span class="dot"></span>Partner</span></div></div><div class="cost">MAD 9,600</div><button class="rm" title="Remove">×</button></div>
+              <div class="line" data-cost="7200"><div class="ico">🏨</div><div class="info"><div class="nm">Luxury desert camp — 2 nights</div><div class="meta"><span class="type">Hotel</span><span class="src ext"><span class="dot"></span>Partner</span></div></div><div class="cost">MAD 7,200</div><button class="rm" title="Remove">×</button></div>
+              <div class="line" data-cost="5400"><div class="ico">🚙</div><div class="info"><div class="nm">Private 4×4 with driver — 6 days</div><div class="meta"><span class="type">Transport</span><span class="src int"><span class="dot"></span>Internal</span></div></div><div class="cost">MAD 5,400</div><button class="rm" title="Remove">×</button></div>
+              <div class="line" data-cost="3000"><div class="ico">🧭</div><div class="info"><div class="nm">Licensed guide — Marrakech medina</div><div class="meta"><span class="type">Guide</span><span class="src int"><span class="dot"></span>Internal</span></div></div><div class="cost">MAD 3,000</div><button class="rm" title="Remove">×</button></div>
+              <div class="line" data-cost="1800"><div class="ico">🎈</div><div class="info"><div class="nm">Hot-air balloon at dawn</div><div class="meta"><span class="type">Activity</span><span class="src ext"><span class="dot"></span>Partner</span></div></div><div class="cost">MAD 1,800</div><button class="rm" title="Remove">×</button></div>
+              <div class="line" data-cost="2600"><div class="ico">✦</div><div class="info"><div class="nm">TripGate Signature: Sahara Under the Stars</div><div class="meta"><span class="type">Tour</span><span class="src int"><span class="dot"></span>Internal</span></div></div><div class="cost">MAD 2,600</div><button class="rm" title="Remove">×</button></div>
+            </div>
+            <div class="pad muted" style="font-size:.82rem"><span id="linecount">6</span> products · <span id="mixnote"></span></div>
+          </div>
+
+          <div>
+            <div class="card summary">
+              <div class="card-h"><h3>Pricing</h3></div>
+              <div class="pad">
+                <div class="sumrow"><span class="muted">Cost (net)</span><span id="cost">MAD 0</span></div>
+                <div class="sumrow"><span class="markup">Markup <input id="markup" type="number" value="18" min="0" />%</span><span id="markupval">MAD 0</span></div>
+                <div class="sumrow"><span class="muted">VAT (0% · export)</span><span>MAD 0</span></div>
+                <div class="sumrow big"><span>Client total</span><span id="total">MAD 0</span></div>
+                <div class="sumrow"><span class="muted">Your profit</span><span class="prof" id="profit">MAD 0</span></div>
+              </div>
+            </div>
+            <div class="picker">
+              <h4>Add a travel product</h4>
+              <div class="pgrid">
+                <button class="padd" data-name="Airport transfer (private)" data-type="Transport" data-source="int" data-cost="700"><div class="pn">Airport transfer</div><div class="pm"><span class="type">Transport</span><span class="pc">MAD 700</span></div></button>
+                <button class="padd" data-name="Cooking class in Fes" data-type="Activity" data-source="ext" data-cost="1200"><div class="pn">Cooking class · Fes</div><div class="pm"><span class="type">Activity</span><span class="pc">MAD 1,200</span></div></button>
+                <button class="padd" data-name="Dinner at Nomad rooftop" data-type="Restaurant" data-source="ext" data-cost="900"><div class="pn">Rooftop dinner</div><div class="pm"><span class="type">Restaurant</span><span class="pc">MAD 900</span></div></button>
+                <button class="padd" data-name="TripGate Signature: Atlas Villages" data-type="Tour" data-source="int" data-cost="3200"><div class="pn">Signature · Atlas</div><div class="pm"><span class="type">Tour</span><span class="pc">MAD 3,200</span></div></button>
+                <button class="padd" data-name="Domestic flight RAK–CMN" data-type="Airline" data-source="ext" data-cost="1600"><div class="pn">Domestic flight</div><div class="pm"><span class="type">Airline</span><span class="pc">MAD 1,600</span></div></button>
+                <button class="padd" data-name="Travel insurance (2 pax)" data-type="Insurance" data-source="ext" data-cost="600"><div class="pn">Travel insurance</div><div class="pm"><span class="type">Insurance</span><span class="pc">MAD 600</span></div></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== PARTNERS ===== -->
+      <section class="view" data-view="partners">
+        <div class="page-head"><div><h1>Partner Management System</h1><p>"Partner" is any product provider — hotel, guide, transport, tour operator, airline, visa. Including TripGate itself as an internal source.</p></div><button class="btn btn-primary">+ Add partner</button></div>
+        <div class="filterbar">
+          <span class="fchip on">All</span><span class="fchip">Hotel</span><span class="fchip">Transport</span><span class="fchip">Guide</span><span class="fchip">Restaurant</span><span class="fchip">Tour operator</span><span class="fchip">Activity</span><span class="fchip">Airline</span><span class="fchip">Visa</span>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Partner</th><th>Type</th><th>Source</th><th>Products</th><th>Availability</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="pname">TripGate Signature Tours</td><td><span class="type">Tour operator</span></td><td><span class="src int"><span class="dot"></span>Internal</span></td><td>14</td><td class="muted">Own inventory</td><td><span class="stat-pill st-ok">Active</span></td></tr>
+              <tr><td class="pname">Riad Kniza</td><td><span class="type">Hotel</span></td><td><span class="src ext"><span class="dot"></span>External</span></td><td>6 room types</td><td class="muted">Live rates</td><td><span class="stat-pill st-ok">Active</span></td></tr>
+              <tr><td class="pname">Atlas Transport Co.</td><td><span class="type">Transport</span></td><td><span class="src ext"><span class="dot"></span>External</span></td><td>9 vehicles</td><td class="muted">On request</td><td><span class="stat-pill st-ok">Active</span></td></tr>
+              <tr><td class="pname">Hassan — Licensed Guide</td><td><span class="type">Guide</span></td><td><span class="src ext"><span class="dot"></span>External</span></td><td>4 cities</td><td class="muted">Calendar synced</td><td><span class="stat-pill st-ok">Active</span></td></tr>
+              <tr><td class="pname">Sky Balloons Marrakech</td><td><span class="type">Activity</span></td><td><span class="src ext"><span class="dot"></span>External</span></td><td>2 experiences</td><td class="muted">Weather-dependent</td><td><span class="stat-pill st-wait">Seasonal</span></td></tr>
+              <tr><td class="pname">Royal Air Maroc</td><td><span class="type">Airline</span></td><td><span class="src ext"><span class="dot"></span>External</span></td><td>Domestic + intl</td><td class="muted">GDS</td><td><span class="stat-pill st-ok">Active</span></td></tr>
+              <tr><td class="pname">VisaFast Partner</td><td><span class="type">Visa</span></td><td><span class="src ext"><span class="dot"></span>External</span></td><td>Schengen, UAE</td><td class="muted">5–10 days</td><td><span class="stat-pill st-ok">Active</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== BOOKINGS ===== -->
+      <section class="view" data-view="bookings">
+        <div class="page-head"><div><h1>Bookings</h1><p>Every component of every confirmed trip, with a live status — nothing forgotten, nothing double-booked.</p></div></div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-h"><h3>Trip #T-318 · Leïla Haddad · Marrakech → Sahara</h3><span class="stat-pill st-wait">In progress</span></div>
+          <table>
+            <thead><tr><th>Component</th><th>Provider</th><th>Source</th><th>Dates</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="pname">Hotel · Riad Kniza</td><td>Riad Kniza</td><td><span class="src ext"><span class="dot"></span>Partner</span></td><td>12–15 Sep</td><td><span class="stat-pill st-ok">Confirmed</span></td></tr>
+              <tr><td class="pname">Desert camp</td><td>Sahara Luxury Camps</td><td><span class="src ext"><span class="dot"></span>Partner</span></td><td>15–17 Sep</td><td><span class="stat-pill st-wait">Pending</span></td></tr>
+              <tr><td class="pname">Transport · 4×4</td><td>TripGate fleet</td><td><span class="src int"><span class="dot"></span>Internal</span></td><td>12–18 Sep</td><td><span class="stat-pill st-ok">Confirmed</span></td></tr>
+              <tr><td class="pname">Guide · Medina</td><td>Hassan</td><td><span class="src int"><span class="dot"></span>Internal</span></td><td>13 Sep</td><td><span class="stat-pill st-ok">Confirmed</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== PAYMENTS ===== -->
+      <section class="view" data-view="payments">
+        <div class="page-head"><div><h1>Payment Center</h1><p>Customer money in, partner money out, and the margin left over — per trip.</p></div></div>
+        <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+          <div class="kpi"><div class="k-l">Collected · month</div><div class="k-v">312k</div><div class="k-d k-up">deposits + balances</div></div>
+          <div class="kpi"><div class="k-l">Outstanding</div><div class="k-v">174k</div><div class="k-d">across 9 trips</div></div>
+          <div class="kpi"><div class="k-l">Partner payouts due</div><div class="k-v">96k</div><div class="k-d">next 14 days</div></div>
+          <div class="kpi"><div class="k-l">Net margin · month</div><div class="k-v" style="color:var(--green)">78k</div><div class="k-d k-up">▲ 14%</div></div>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Trip</th><th>Client total</th><th>Paid</th><th>Balance</th><th>Partner cost</th><th>Margin</th></tr></thead>
+            <tbody>
+              <tr><td class="pname">O. Fassi · Grand Egypt</td><td>MAD 62,000</td><td>MAD 24,800</td><td class="st-wait" style="font-weight:700">MAD 37,200</td><td>MAD 48,000</td><td class="prof" style="color:var(--green);font-weight:700">MAD 14,000</td></tr>
+              <tr><td class="pname">L. Haddad · Sahara</td><td>MAD 38,400</td><td>MAD 0</td><td class="st-act" style="font-weight:700">MAD 38,400</td><td>MAD 29,600</td><td class="prof" style="color:var(--green);font-weight:700">MAD 8,800</td></tr>
+              <tr><td class="pname">M. Idrissi · Umrah</td><td>MAD 210,000</td><td>MAD 150,000</td><td class="st-wait" style="font-weight:700">MAD 60,000</td><td>MAD 178,000</td><td class="prof" style="color:var(--green);font-weight:700">MAD 32,000</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== DOCUMENTS ===== -->
+      <section class="view" data-view="documents">
+        <div class="page-head"><div><h1>Document Vault</h1><p>Every traveler document in one secure place — passports, visas, tickets, vouchers, insurance, contracts.</p></div></div>
+        <div class="card pad" style="margin-bottom:16px"><b>Leïla Haddad</b> · Trip #T-318 · Marrakech → Sahara</div>
+        <div class="docgrid">
+          <div class="doc"><div class="di">🛂</div><div class="dn">Passports</div><div class="ds stat-pill st-ok" style="display:inline-block">2 / 2</div></div>
+          <div class="doc"><div class="di">📄</div><div class="dn">Visas</div><div class="ds stat-pill st-ok" style="display:inline-block">Not required</div></div>
+          <div class="doc"><div class="di">🎟️</div><div class="dn">Tickets</div><div class="ds stat-pill st-wait" style="display:inline-block">Pending</div></div>
+          <div class="doc"><div class="di">🧾</div><div class="dn">Vouchers</div><div class="ds stat-pill st-ok" style="display:inline-block">4 issued</div></div>
+          <div class="doc"><div class="di">🛡️</div><div class="dn">Insurance</div><div class="ds stat-pill st-ok" style="display:inline-block">Active</div></div>
+          <div class="doc"><div class="di">✍️</div><div class="dn">Contract</div><div class="ds stat-pill st-ok" style="display:inline-block">Signed</div></div>
+        </div>
+      </section>
+
+      <!-- ===== KNOWLEDGE ===== -->
+      <section class="view" data-view="knowledge">
+        <div class="page-head"><div><h1>Knowledge Base</h1><p>The agency's know-how as an asset — so capability never walks out the door with one employee.</p></div></div>
+        <div class="seed">✦ Seeded from your existing project: tour files, JSON manifests, images, documentation and supplier info are already the nucleus of this base.</div>
+        <div class="kb">
+          <div class="kbc"><div class="ki">📘</div><h4>Partner playbooks</h4><p>How to book, contact, and negotiate with each partner.</p></div>
+          <div class="kbc"><div class="ki">🧭</div><h4>Booking procedures</h4><p>Step-by-step for hotels, transport, guides, tours.</p></div>
+          <div class="kbc"><div class="ki">🛂</div><h4>Visa procedures</h4><p>Requirements and timelines by destination.</p></div>
+          <div class="kbc"><div class="ki">🏨</div><h4>Hotel guides</h4><p>Room types, seasons, and quirks of each property.</p></div>
+          <div class="kbc"><div class="ki">🗂️</div><h4>Tour files &amp; manifests</h4><p>Existing JSON tour data — the internal product catalog.</p></div>
+          <div class="kbc"><div class="ki">⛔</div><h4>Cancellation policies</h4><p>Per partner and per product, in one reference.</p></div>
+        </div>
+      </section>
+
+      <!-- ===== ARCHITECTURE ===== -->
+      <section class="view" data-view="architecture">
+        <div class="page-head"><div><h1>Architecture — why it's source-agnostic</h1><p>One data model that stays the same whether the product comes from a supplier, a partner, or TripGate itself. That's what lets the business model evolve without a rebuild.</p></div></div>
+
+        <div class="card pad" style="margin-bottom:18px">
+          <div class="arrowflow" style="font-size:.95rem;justify-content:center;gap:10px;flex-wrap:wrap">
+            <b>Lead</b> → Requirements → Travel products → Pricing → <b>Quote</b> → Booking → Documents → Payments → Support
+          </div>
+          <p class="muted" style="text-align:center;margin:14px 0 0;font-size:.88rem">The Trip Engine. You can change the <b>source</b> of the travel products at any time — Supplier · Partner · TripGate — without changing this architecture.</p>
+        </div>
+
+        <div class="archrow">
+          <div class="archbox"><h4>Partner</h4><div class="tree">Partner
+├── Type
+├── Contact
+├── Products
+├── Pricing
+├── Availability
+└── Conditions</div></div>
+          <div class="archbox"><h4>Travel Product</h4><div class="tree">Travel Product
+├── Hotel
+├── Transport
+├── Activity
+├── Guide
+├── Restaurant
+└── Tour</div></div>
+          <div class="archbox"><h4>Tour (source-agnostic)</h4><div class="tree">Tour
+└── Source
+    ├── Internal  → TripGate
+    └── External  → Partner</div></div>
+        </div>
+
+        <div class="grid2" style="margin-top:18px">
+          <div class="card pad">
+            <h3 style="color:var(--navy);margin-bottom:10px">Three phases, one system</h3>
+            <ul class="tl">
+              <li><span class="dot"></span><div><div class="t">Phase 1 · Launch — Intermediary</div><div class="m">Supplier → TripGate → Customer. Bring clients, build quotes, coordinate, earn commission.</div></div></li>
+              <li><span class="dot"></span><div><div class="t">Phase 2 · Growth — Network</div><div class="m">TripGate works directly with its own network of partners.</div></div></li>
+              <li><span class="dot"></span><div><div class="t">Phase 3 · Maturity — Tour operator</div><div class="m">TripGate builds its own packages, itineraries, pricing and branding.</div></div></li>
+            </ul>
+          </div>
+          <div class="card pad">
+            <h3 style="color:var(--navy);margin-bottom:10px">Build the Trip Engine, not a…</h3>
+            <ul class="tl">
+              <li><span class="dot" style="background:var(--red)"></span><div><div class="t">Not a CRM</div></div></li>
+              <li><span class="dot" style="background:var(--red)"></span><div><div class="t">Not a booking platform</div></div></li>
+              <li><span class="dot" style="background:var(--red)"></span><div><div class="t">Not an ERP</div></div></li>
+              <li><span class="dot" style="background:var(--teal)"></span><div><div class="t">A Trip Engine — a machine from Lead to Support, with a swappable product source.</div></div></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // view switching
+  var items=document.querySelectorAll('.nav-item');
+  var views=document.querySelectorAll('.view');
+  items.forEach(function(it){
+    it.addEventListener('click',function(){
+      var v=it.dataset.view;
+      items.forEach(function(x){x.classList.toggle('active',x===it);});
+      views.forEach(function(x){x.classList.toggle('active',x.dataset.view===v);});
+      document.querySelector('.content').scrollTop=0;
+      window.scrollTo(0,0);
+    });
+  });
+
+  // partner filter chips (visual only)
+  document.querySelectorAll('.fchip').forEach(function(c){
+    c.addEventListener('click',function(){
+      document.querySelectorAll('.fchip').forEach(function(x){x.classList.toggle('on',x===c);});
+    });
+  });
+
+  // ---- quote builder math ----
+  var fmt=function(n){return 'MAD '+Math.round(n).toLocaleString('en-US');};
+  function recompute(){
+    var lines=document.querySelectorAll('#lines .line');
+    var cost=0; var intN=0, extN=0;
+    lines.forEach(function(l){
+      cost+=parseFloat(l.dataset.cost)||0;
+      if(l.querySelector('.src.int')) intN++; else if(l.querySelector('.src.ext')) extN++;
+    });
+    var m=parseFloat(document.getElementById('markup').value)||0;
+    var markupVal=cost*m/100;
+    var total=cost+markupVal;
+    document.getElementById('cost').textContent=fmt(cost);
+    document.getElementById('markupval').textContent=fmt(markupVal);
+    document.getElementById('total').textContent=fmt(total);
+    document.getElementById('profit').textContent=fmt(markupVal);
+    document.getElementById('linecount').textContent=lines.length;
+    document.getElementById('mixnote').textContent=intN+' internal · '+extN+' partner';
+  }
+  document.addEventListener('click',function(e){
+    if(e.target.classList.contains('rm')){ e.target.closest('.line').remove(); recompute(); }
+  });
+  document.getElementById('markup').addEventListener('input',recompute);
+  document.querySelectorAll('.padd').forEach(function(b){
+    b.addEventListener('click',function(){
+      var src=b.dataset.source==='int'?'int':'ext';
+      var label=src==='int'?'Internal':'Partner';
+      var icons={Transport:'🚙',Activity:'🎈',Restaurant:'🍽️',Tour:'✦',Airline:'✈️',Insurance:'🛡️',Hotel:'🏨',Guide:'🧭'};
+      var row=document.createElement('div');
+      row.className='line'; row.dataset.cost=b.dataset.cost;
+      row.innerHTML='<div class="ico">'+(icons[b.dataset.type]||'•')+'</div>'+
+        '<div class="info"><div class="nm">'+b.dataset.name+'</div><div class="meta"><span class="type">'+b.dataset.type+'</span><span class="src '+src+'"><span class="dot"></span>'+label+'</span></div></div>'+
+        '<div class="cost">'+fmt(parseFloat(b.dataset.cost))+'</div><button class="rm" title="Remove">×</button>';
+      document.getElementById('lines').appendChild(row);
+      recompute();
+    });
+  });
+  recompute();
+})();
+</script>
+</body>
+</html>

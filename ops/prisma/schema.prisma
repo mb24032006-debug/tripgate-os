@@ -1,0 +1,510 @@
+// TripGate OS — data layer.
+//
+// Postgres in every environment (local dev included — see prisma/local-postgres.ts for the
+// zero-Docker embedded instance used in dev). Status/kind fields below are still plain String
+// columns with allowed values documented inline, rather than Prisma `enum`s, matching this
+// project's general "portable over engine-specific" bias for schema-level constructs, not because
+// SQLite is still a target anywhere. Money is stored as *Minor units (e.g. cents) in a plain Int,
+// never Float — avoids floating-point drift.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection URL lives in prisma.config.ts / the PrismaClient adapter, not here.
+datasource db {
+  provider = "postgresql"
+}
+
+// Singleton-ish row: the operating model is DATA, not a deploy-time constant — this is what makes
+// "the business model may change" a config edit instead of a redeploy. `enabledModules` is the
+// mechanism for "build the entire architecture now, activate features progressively" (founder's
+// explicit direction): every table below exists from day one regardless of what's toggled on here.
+model OrganizationSettings {
+  id             String   @id @default(cuid())
+  // "intermediary" | "network" | "tour_operator" | "hybrid"
+  operatingModel String   @default("intermediary")
+  // e.g. {"leads":true,"quotes":true,"bookings":false,"documents":false,"payments":false,"knowledgeBase":true}
+  enabledModules String // JSON-encoded string, not a native Json column — kept consistent with every other JSON-bearing field in this schema (see attributes/commercialTerms/data below) rather than mixing encodings
+  updatedAt      DateTime @updatedAt
+}
+
+// The Staff table architecture/04_ARCHITECTURE_FREEZE.md and Trip's old ownerName comment both
+// anticipated. Three roles, cumulative — a Manager can do everything an Agent can, plus more; an
+// Administrator can do everything a Manager can, plus more (see lib/auth.ts's ROLE_RANK). Not
+// stored as a Prisma enum for the same reason nothing else in this schema is one (see this file's
+// header comment).
+model Staff {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("agent") // "agent" | "manager" | "administrator"
+  status       String    @default("active") // "active" | "disabled" — disabling revokes access without deleting the account's history (trips owned, notes left)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions Session[]
+  trips    Trip[]
+}
+
+// A DB-backed session, not a stateless signed token — a disabled Staff account or a manual
+// sign-out actually revokes access immediately, rather than waiting for a JWT to expire. The
+// session id itself (a cuid) is the cookie value; its own unguessability is the security property,
+// the same way every other id in this schema already is one.
+model Session {
+  id        String   @id @default(cuid())
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Customer {
+  id    String  @id @default(cuid())
+  name  String
+  // Nullable on purpose: a real lead often starts as just a name and a phone number from a call
+  // or WhatsApp message — requiring an email up front before anything can be saved is exactly the
+  // kind of rigidity that pushes staff back to paper. Multiple customers with no email is fine;
+  // SQLite/Postgres both treat NULL as distinct from NULL in a unique index, so this doesn't
+  // relax the dedupe-by-email behavior for customers who do have one.
+  email     String?  @unique
+  phone     String?
+  // Soft-delete, same mechanism as Trip.archivedAt below — hides a customer from the main
+  // Customers list without breaking the Trip.customerId relation a hard delete would. Null =
+  // active. A permanent delete (Archive section only) still requires zero trips first — Trip's own
+  // FK to Customer is non-nullable, so nothing here silently orphans a Trip row.
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trips Trip[]
+}
+
+// The taxonomy that makes a brand-new product type a data change, not a schema change.
+model Category {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  // Same nullable-fallback pattern as TravelProduct.nameFr — only 10 fixed rows, so this is a
+  // one-time seed, not a maintenance burden.
+  nameFr          String?
+  // Field definitions governing what a product of this category's `attributes` JSON should carry.
+  attributeSchema String // JSON-encoded field defs, e.g. [{"name":"roomType","type":"string"}]
+  defaultUnitType String? // "per_night" | "per_person" | "per_day" | "per_group" | "per_booking"
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  travelProducts TravelProduct[]
+}
+
+// The single mechanism that makes internal/external a metadata flag, never a schema fork.
+model Provider {
+  id               String   @id @default(cuid())
+  name             String
+  // "internal" | "external" — the ONLY field distinguishing TripGate itself from any partner/supplier.
+  sourceKind       String
+  // JSON string[] — a provider can span more than one type, e.g. ["Hotel"], ["Tour operator","Guide"]
+  providerTypes    String
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  // JSON blob: payment terms, currency, commission/markup agreement ref, payout details.
+  // Present on every row regardless of sourceKind — for internal providers this is simply empty
+  // or represents an internal cost-allocation convention, never a different schema.
+  commercialTerms  String?
+  relationshipTier String? // "preferred" | "contracted" | "spot" | "seasonal"
+  status           String   @default("active") // "active" | "inactive" | "onboarding" | "seasonal"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  travelProducts TravelProduct[]
+  quoteLines     QuoteLine[]
+  bookingLines   BookingLine[]
+}
+
+model TravelProduct {
+  id                       String   @id @default(cuid())
+  name                     String
+  shortDescription         String?
+  // French translation, nullable — English is authoritative and always present; French falls
+  // back to it silently when not yet translated (never shown as an error, just the English text).
+  // Two flat columns rather than a Translation join table since exactly 2 languages are needed
+  // today (research/09_BUSINESS_RULES.md §3: the marketing site itself is English-only, so the OS
+  // isn't behind it) — see architecture/03_KNOWN_ARCHITECTURAL_LIMITATIONS.md §2 for why a proper
+  // polymorphic Translation table (mirroring KnowledgeArticleLink's pattern) is the right call if
+  // a third language is ever needed, instead of a 3rd flat column.
+  nameFr                   String?
+  shortDescriptionFr       String?
+  categoryId               String
+  category                 Category @relation(fields: [categoryId], references: [id])
+  providerId               String
+  provider                 Provider @relation(fields: [providerId], references: [id])
+  status                   String   @default("draft") // "draft" | "active" | "inactive" | "retired"
+  unitType                 String?
+  baseCurrency             String?
+  defaultNetCostMinor      Int?
+  defaultSellingPriceMinor Int?
+  // JSON blob shaped per Category.attributeSchema — room_type/meal_plan for Hotel,
+  // languages/certification for Guide, processing_days for Visa Service, etc.
+  attributes               String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  availability ProductAvailability[]
+  quoteLines   QuoteLine[]
+  bookingLines BookingLine[]
+}
+
+// Optional companion table — only categories that need date-based inventory (Hotel, Tour
+// departures) get rows here. Categories that don't (Insurance, Visa Service) simply have none;
+// TravelProduct's own schema never changes either way.
+model ProductAvailability {
+  id                String        @id @default(cuid())
+  travelProductId   String
+  travelProduct     TravelProduct @relation(fields: [travelProductId], references: [id])
+  startDate         DateTime
+  endDate           DateTime
+  unitsAvailable    Int?
+  unitsBooked       Int           @default(0)
+  rateOverrideMinor Int?
+  status            String? // "open" | "limited" | "closed"
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+// The connective thread — every pipeline-stage entity below hangs off one Trip.
+// `currentPipelineStage` is deliberately NOT a column here: Documents/Payments/Support run
+// concurrently once a Booking exists, so a single hand-maintained enum would create false "stuck"
+// states. Compute it at the application layer as a rollup over the child records instead.
+model Trip {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  overallStatus String   @default("active") // "active" | "on_hold" | "lost" | "completed" | "cancelled"
+  // A real Staff relation, not free text — see Staff's own comment below. Nullable: a fresh trip
+  // (especially a website-sourced one) starts unowned until an agent picks it up.
+  ownerId       String?
+  owner         Staff?   @relation(fields: [ownerId], references: [id])
+  // Only meaningful when overallStatus = "lost" — free text since there's no fixed reason taxonomy yet.
+  lostReason    String?
+  // Human-readable — "TG-2026-0001" — assigned at creation. Nothing else on a trip is safe to read
+  // aloud on a phone call or write on a supplier voucher; the raw cuid isn't meant for that.
+  reference     String?  @unique
+  // Soft-delete: "Delete this trip" now archives (hides it everywhere a normal Trip list queries
+  // `archivedAt: null`) instead of the old immediate hard-cascade-delete. The Archive section is
+  // the only place that still exposes a real, permanent, cascading delete — and only for a trip
+  // that's already archived, never a live one.
+  archivedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lead           Lead?
+  requirement    TripRequirement?
+  travellers     Traveller[]
+  quotes         Quote[]
+  bookings       Booking[]
+  documents      Document[]
+  payments       Payment[]
+  supportTickets SupportTicket[]
+}
+
+// The other half of what Omra & Hajj actually needs, per the founder's own scoping: a quote can
+// already say "4 travellers" (TripRequirement.travelerCount, a headcount typed early); this is
+// who — turned into a per-person record once it's known. Deliberately independent of
+// travelerCount rather than derived from or syncing with it: an early enquiry has a number before
+// it has names, and forcing the two to reconcile would just be friction with no real payoff.
+// `mahramRelationship` is free text, not a relation to another Traveller row — modeling an actual
+// mahram graph is real complexity this doesn't need yet; a plain "husband," "father," "self / no
+// mahram required" answers exactly what a visa/booking check needs today. Genuinely no dependency
+// on hosting or file storage — pure data, safe to build and use before either exists.
+model Traveller {
+  id                 String    @id @default(cuid())
+  tripId             String
+  trip               Trip      @relation(fields: [tripId], references: [id])
+  firstName          String
+  lastName           String
+  dateOfBirth        DateTime?
+  gender             String? // "male" | "female"
+  nationality        String?
+  passportNumber     String?
+  passportExpiry     DateTime?
+  mahramRelationship String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Lead {
+  id                  String   @id @default(cuid())
+  tripId              String   @unique
+  trip                Trip     @relation(fields: [tripId], references: [id])
+  channel             String // "whatsapp" | "website" | "phone" | "email" | "instagram"
+  sourceForm          String? // "tailor-made-holidays" | "business-travel" | "omra-hajj" | ...
+  // Set by the agent after reading the raw enquiry, never inferred by the OS — Principle 3 of the
+  // business doctrine is that classification is a human judgment call, not a guess the system
+  // makes. Null until an agent has actually looked at the request and picked one.
+  requestType         String? // "tailor_made" | "omra_hajj" | "business_travel" | "tour"
+  // Full raw submission payload, preserved as-is — the site's own form widgets don't reliably
+  // enforce `required` (see research/02_LEAD_INTAKE_SPECIFICATION.md §6), so normalized fields
+  // on TripRequirement below may be incomplete; the raw payload is the fallback source of truth.
+  rawPayload          String
+  receivedAt          DateTime @default(now())
+  qualificationStatus String   @default("new") // "new" | "qualifying" | "qualified" | "lost"
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model TripRequirement {
+  id                    String   @id @default(cuid())
+  tripId                String   @unique
+  trip                  Trip     @relation(fields: [tripId], references: [id])
+  destinations          String? // JSON string[]
+  travelerCount         Int?
+  tripLengthDays        Int?
+  accommodationCategory String?
+  interests             String? // JSON string[]
+  budgetBand            String?
+  // The actual calendar anchor — tripLengthDays is a duration, this is "when." Nullable: an early
+  // enquiry often has a duration in mind before firm dates exist.
+  travelStartDate       DateTime?
+  notes                 String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Quote {
+  id                     String   @id @default(cuid())
+  tripId                 String
+  trip                   Trip     @relation(fields: [tripId], references: [id])
+  // A Trip can hold several concurrent Quotes (Budget / Premium / Luxury options for the same
+  // trip) — this label is how staff tell them apart in a list; optional since a single-quote
+  // trip doesn't need one.
+  label                  String?
+  version                Int      @default(1)
+  supersedesQuoteId      String?
+  status                 String   @default("draft") // "draft" | "sent" | "revised" | "accepted" | "rejected" | "expired"
+  currency               String   @default("MAD")
+  // Frozen at the moment status -> "sent", so a later product-price change can never retroactively
+  // alter what the customer was already shown. Null while still Draft (totals derived live instead).
+  sentSnapshotTotalMinor Int?
+  // When status actually flipped to "sent" — without this, "awaiting reply" and any future SLA
+  // are measured against an event the system never recorded happening.
+  sentAt                 DateTime?
+  // Optional expiry the agent commits to when sending — e.g. "this price is held for 7 days".
+  // Advisory only today (nothing auto-expires the status yet).
+  validUntil             DateTime?
+  // Decline reason / internal context — free text since there's no fixed taxonomy of reasons yet.
+  notes                  String?
+  // "agent" | "client" — who actually declined it. Without this, an agent withdrawing a quote and
+  // a customer saying no look identical in win/loss reporting, and the client-facing page ends up
+  // telling a customer "you declined this" about a decision they never made.
+  declinedBy             String?
+  // Staff-authored terms/deposit copy shown on the client-facing view, directly under the total.
+  // Null by default — never a fabricated boilerplate paragraph standing in for real legal text.
+  termsText              String?
+  // Captured at the moment of acceptance — the one thing the old single-click accept had neither:
+  // a name the agency can point to, and when. Not a substitute for real authentication; it is what
+  // a phone-order or a signed voucher already relies on today.
+  acceptedByName         String?
+  acceptedAt             DateTime?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  lines   QuoteLine[]
+  booking Booking?
+}
+
+model QuoteLine {
+  id                 String        @id @default(cuid())
+  quoteId            String
+  quote              Quote         @relation(fields: [quoteId], references: [id])
+  travelProductId    String
+  travelProduct      TravelProduct @relation(fields: [travelProductId], references: [id])
+  // Snapshots below are copied at add-time — a product's provider/category can change after the
+  // quote exists; a sent quote must stay historically accurate regardless.
+  providerId         String
+  provider           Provider      @relation(fields: [providerId], references: [id])
+  categoryIdSnapshot String
+  sourceKindCache    String // denormalized "internal" | "external" copy of Provider.sourceKind — display/reporting only, never authoritative
+  startDate          DateTime?
+  endDate            DateTime?
+  quantity           Int           @default(1)
+  unit               String? // "nights" | "pax" | "days" | "unit"
+  // Snapshot of the PRODUCT's currency at add-time (e.g. "USD" for a Moods Travel line quoted in
+  // USD) — null means "same as Quote.currency" (the common case for internally-priced lines with
+  // no baseCurrency of their own). netCostMinor/sellingPriceMinor are ALWAYS denominated in this
+  // currency, never silently reinterpreted as the Quote's currency — a line quoted in USD must
+  // never be summed into a MAD total without an explicit, confirmed conversion. See
+  // research/04_CONTENT_SOURCE_OF_TRUTH.md / 06_PROVIDER_INVENTORY.md on the real, still-unresolved
+  // USD-vs-SAR ambiguity this guards against.
+  currency           String?
+  // Set only when `currency` differs from the parent Quote's currency — the one remedy for the
+  // "mixed-currency quote can never be sent" dead end: an agent enters the rate once, the line's
+  // contribution to the Quote total is netCost/sellingPrice * this rate, rounded to the minor unit.
+  // Null (unresolved) blocks sending exactly like before; this is strictly additive.
+  fxRateToQuoteCurrency Float?
+  netCostMinor       Int
+  sellingPriceMinor  Int
+  // Audit-only: explains HOW sellingPriceMinor was derived — never the source of truth.
+  // "manual" | "cost_plus_markup:18%" | "fixed_retail"
+  pricingMethod      String        @default("manual")
+  availabilityStatus String        @default("not_checked") // not_checked|available|on_request|confirmed|unavailable
+  bookingStatus      String        @default("not_booked") // not_booked|reserved|requested|confirmed|cancelled
+  sortOrder          Int           @default(0)
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  bookingLine BookingLine?
+}
+
+// A copy-on-accept of the Quote's lines, created the moment Quote.status -> "accepted".
+// Kept separate from Quote (not a status on Quote) because Bookings need fields Quotes never do
+// (confirmationReference, provider confirmation, cancellation deadline) and partial fulfillment —
+// transport confirmed, hotel still pending — is the norm, needing its own per-line status.
+model Booking {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id])
+  quoteId   String   @unique
+  quote     Quote    @relation(fields: [quoteId], references: [id])
+  status    String   @default("in_progress") // "in_progress" | "confirmed" | "cancelled"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines BookingLine[]
+}
+
+model BookingLine {
+  id                         String        @id @default(cuid())
+  bookingId                  String
+  booking                    Booking       @relation(fields: [bookingId], references: [id])
+  quoteLineId                String        @unique
+  quoteLine                  QuoteLine     @relation(fields: [quoteLineId], references: [id])
+  travelProductId            String
+  travelProduct              TravelProduct @relation(fields: [travelProductId], references: [id])
+  providerId                 String
+  provider                   Provider      @relation(fields: [providerId], references: [id])
+  confirmationReference      String?
+  confirmedStartDate         DateTime?
+  confirmedEndDate           DateTime?
+  providerConfirmationStatus String        @default("requested") // requested|confirmed|declined|cancelled|not_applicable
+  cancellationDeadline       DateTime?
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @updatedAt
+}
+
+model Document {
+  id           String    @id @default(cuid())
+  tripId       String
+  trip         Trip      @relation(fields: [tripId], references: [id])
+  type         String // "passport" | "visa" | "ticket" | "voucher" | "insurance" | "contract"
+  status       String    @default("pending") // "pending" | "issued" | "expired" | "not_required"
+  travelerName String?
+  expiryDate   DateTime?
+  // Object-storage reference (S3/R2 key or URL) — never a binary blob in this table.
+  fileUrl      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Payment {
+  id            String    @id @default(cuid())
+  tripId        String
+  trip          Trip      @relation(fields: [tripId], references: [id])
+  bookingLineId String?
+  direction     String // "inbound" (customer -> TripGate) | "outbound" (TripGate -> provider)
+  amountMinor   Int
+  currency      String    @default("MAD")
+  type          String // "deposit" | "balance" | "refund" | "payout"
+  dueDate       DateTime?
+  paidDate      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model SupportTicket {
+  id             String    @id @default(cuid())
+  tripId         String
+  trip           Trip      @relation(fields: [tripId], references: [id])
+  subject        String
+  priority       String    @default("normal") // "low" | "normal" | "high" | "urgent"
+  status         String    @default("open") // "open" | "in_progress" | "resolved" | "closed"
+  openedAt       DateTime  @default(now())
+  resolvedAt     DateTime?
+  resolutionNote String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+// The notification feed — the missing "slot" the Operational Inspection flagged: no bell, no
+// unread state, no user identity to address one to. Global (not per-user) read state on purpose:
+// there is no login/Staff table yet (see Trip.ownerName's comment above), so "read" can only mean
+// "the agency has seen it," not "this person has." A future per-user table (e.g. a NotificationRead
+// join keyed by userId) can sit alongside this one once accounts exist, without rewriting it.
+// `tripId` is a plain string, not a relation — same polymorphic-reference pattern as
+// KnowledgeArticleLink.subjectId below — so a deleted trip doesn't force a cascade rule here; the
+// notification just becomes historical (its link 404s), which permanentlyDeleteTrip cleans up explicitly.
+// `data` carries only facts (reference, customer name, subject…), never prose — the sentence itself
+// is rendered at read time via lib/i18n.ts's t(), the same bilingual mechanism every other status/
+// label in this app already goes through, so a locale switch translates notifications too.
+model Notification {
+  id        String    @id @default(cuid())
+  eventType String // "website_lead" | "support_ticket" | "quote_accepted" | "quote_declined" | "booking_created" | "returning_customer"
+  tripId    String?
+  link      String
+  data      String // JSON-encoded facts used to interpolate the i18n template for eventType
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+// Settings-managed rates, not a per-line manual entry — the gap the Payments verification pass
+// actually hit: sending a quote with a USD/SAR-priced product against a MAD quote required an
+// agent to type a rate by hand every single time (QuoteLine.fxRateToQuoteCurrency's own comment
+// already flagged this as "the one remedy," just with no source to draw a default from). This
+// table is that source: addQuoteLine looks up a matching row and pre-resolves the line
+// automatically. Still just a default — an agent can still override a line's own rate, and this
+// table changing later never rewrites an already-resolved line (see QuoteLine's own comment on why
+// that snapshot must survive a later rate change unchanged).
+model ExchangeRate {
+  id            String   @id @default(cuid())
+  fromCurrency  String
+  toCurrency    String
+  rate          Float
+  updatedAt     DateTime @updatedAt
+
+  @@unique([fromCurrency, toCurrency])
+}
+
+model KnowledgeArticle {
+  id             String    @id @default(cuid())
+  title          String
+  body           String
+  // Same nullable-fallback pattern as TravelProduct.nameFr — see that field's comment.
+  titleFr        String?
+  bodyFr         String?
+  articleType    String // "playbook" | "procedure" | "policy" | "guide" | "tour_file" | "cancellation_policy"
+  status         String    @default("draft") // "draft" | "published" | "archived"
+  version        Int       @default(1)
+  lastReviewedAt DateTime?
+  tags           String? // JSON string[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  links KnowledgeArticleLink[]
+}
+
+// The generic join that lets KB content attach to any entity without ever adding a nullable FK
+// column per entity type. Attaching to a brand-new entity later needs zero schema change — just
+// new rows with a new subjectType.
+model KnowledgeArticleLink {
+  id               String           @id @default(cuid())
+  articleId        String
+  article          KnowledgeArticle @relation(fields: [articleId], references: [id])
+  subjectType      String // "Provider" | "TravelProduct" | "Category" | "Trip"
+  subjectId        String
+  relationshipRole String? // e.g. "cancellation policy" | "primary procedure" | "related"
+  createdAt        DateTime         @default(now())
+}
