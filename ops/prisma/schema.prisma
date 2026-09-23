@@ -451,7 +451,7 @@ model SupportTicket {
 // label in this app already goes through, so a locale switch translates notifications too.
 model Notification {
   id        String    @id @default(cuid())
-  eventType String // "website_lead" | "support_ticket" | "quote_accepted" | "quote_declined" | "booking_created" | "returning_customer"
+  eventType String // "website_lead" | "website_lead_incomplete" | "support_ticket" | "quote_accepted" | "quote_declined" | "booking_created" | "returning_customer" | "payment_received"
   tripId    String?
   link      String
   data      String // JSON-encoded facts used to interpolate the i18n template for eventType

@@ -16,6 +16,7 @@ import { t, type Locale, type StringKey } from "./i18n";
 // dashboard already shows "awaiting reply" live rather than from a stored event.
 export type NotificationEventType =
   | "website_lead"
+  | "website_lead_incomplete"
   | "support_ticket"
   | "quote_accepted"
   | "quote_declined"
@@ -25,6 +26,7 @@ export type NotificationEventType =
 
 const EVENT_KEY: Record<NotificationEventType, StringKey> = {
   website_lead: "notifWebsiteLead",
+  website_lead_incomplete: "notifWebsiteLeadIncomplete",
   support_ticket: "notifSupportTicket",
   quote_accepted: "notifQuoteAccepted",
   quote_declined: "notifQuoteDeclined",

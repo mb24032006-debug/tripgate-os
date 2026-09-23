@@ -46,8 +46,11 @@ export async function createTripRecord(
 
   // Every trip has an originating Lead — this was already true for website submissions
   // (once wired up) but silently false for manual/quick-capture entry, which is why the Lead
-  // Inbox and dashboard's Leads count read zero regardless of real work done. `requestType` is set
-  // by the agent, never inferred — Principle 3 of the business doctrine.
+  // Inbox and dashboard's Leads count read zero regardless of real work done. For manually-captured
+  // trips, `requestType` is still set by the agent, never inferred — Principle 3 of the business
+  // doctrine. Website submissions are the one sanctioned exception: app/api/website-intake/route.ts
+  // sets it from which physical form the lead arrived on (an explicit fact, not a guess at the
+  // content of an answer) — see that file's own header comment.
   await prisma.lead.create({
     data: { tripId: trip.id, channel, requestType, sourceForm, rawPayload: JSON.stringify(rawPayload) },
   });
